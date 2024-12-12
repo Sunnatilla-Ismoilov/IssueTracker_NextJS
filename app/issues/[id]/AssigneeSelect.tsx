@@ -9,38 +9,30 @@ import { User } from "next-auth";
 import toast, { Toaster } from "react-hot-toast";
 
 const AssigneeSelect = ({ issue }: { issue: Issue }) => {
-  const {
-    data: users,
-    error,
-    isLoading,
-  } = useQuery<User[]>({
-    queryKey: ["users"],
-    queryFn: () => axios.get("/api/users").then((res) => res.data),
-    staleTime: 60 * 1000,
-    retry: 3,
-  });
+  const { data: users, error, isLoading } = useUsers();
 
   if (isLoading) return <Skeleton />;
 
   if (error) return null;
 
+  const assignIssue = (userId: string) => {
+    axios
+      .patch(`/api/issues/${issue.id}`, {
+        assignedToUserId: userId === "unassigned" ? null : userId,
+      })
+      .then(() => {
+        toast.success("Assignee updated successfully");
+      })
+      .catch(() => {
+        toast.error("Failed to update assignee");
+      });
+  };
+
   return (
     <div>
       <Select.Root
         defaultValue={issue.assignedToUserId || ""} // Set default value
-        onValueChange={(userId) => {
-          axios
-            .patch(`/api/issues/${issue.id}`, {
-              assignedToUserId: userId === "unassigned" ? null : userId,
-              // Handle "unassigned" explicitly
-            })
-            .then(() => {
-              toast.success("Assignee updated successfully");
-            })
-            .catch(() => {
-              toast.error("Failed to update assignee");
-            });
-        }}
+        onValueChange={assignIssue}
       >
         <Select.Trigger placeholder="Assign..." />
         <Select.Content>
@@ -60,5 +52,13 @@ const AssigneeSelect = ({ issue }: { issue: Issue }) => {
     </div>
   );
 };
+
+const useUsers = () =>
+  useQuery<User[]>({
+    queryKey: ["users"],
+    queryFn: () => axios.get("/api/users").then((res) => res.data),
+    staleTime: 60 * 1000,
+    retry: 3,
+  });
 
 export default AssigneeSelect;
